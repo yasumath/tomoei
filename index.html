@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ともえいゲーム広場</title>
+  <style>
+    :root {
+      --bg-color: #f4f7f9;
+      --card-bg: #ffffff;
+      --primary: #2563eb;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 24px 16px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    header p {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+    }
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .app-card {
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e2e8f0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .app-card:hover, .app-card:active {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+      border-color: var(--primary);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .app-icon {
+      font-size: 2rem;
+      line-height: 1;
+    }
+    .app-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--text-main);
+    }
+    .app-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      background: #eff6ff;
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      align-self: flex-start;
+    }
+    .app-desc {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      flex-grow: 1;
+    }
+    footer {
+      text-align: center;
+      margin-top: 48px;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>👦 ともえいゲーム広場</h1>
+      <p>やりたいアプリを選んでタップしよう！</p>
+    </header>
+
+    <!-- ここにJavaScriptでアプリ一覧が自動生成されます -->
+    <main id="app-list" class="app-grid"></main>
+
+    <footer>
+      <p>© yasumath</p>
+    </footer>
+  </div>
+
+  <script>
+    // ==========================================
+    // ★ アプリを追加・修正したいときはここだけを編集 ★
+    // ==========================================
+    const apps = [
+      
+    ];
+
+    // アプリ一覧を画面に描画する処理（ここは変更不要）
+    const appListContainer = document.getElementById("app-list");
+
+    apps.forEach(app => {
+      const card = document.createElement("a");
+      card.href = app.file;
+      card.className = "app-card";
+
+      card.innerHTML = `
+        <span class="app-tag">${app.tag}</span>
+        <div class="card-header">
+          <span class="app-icon">${app.icon}</span>
+          <div class="app-title">${app.title}</div>
+        </div>
+        <p class="app-desc">${app.description}</p>
+      `;
+
+      appListContainer.appendChild(card);
+    });
+  </script>
+
+</body>
+</html>

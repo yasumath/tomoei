@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ぴったり おかいもの！コインパニック</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    font-family: 'M PLUS Rounded 1c', "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    background: linear-gradient(180deg, #fef9c3 0%, #fde68a 100%);
+    touch-action: manipulation;
+  }
+  .danger-pulse {
+    animation: dangerFlash 0.35s infinite alternate;
+  }
+  @keyframes dangerFlash {
+    from {
+      box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.45), 0 6px 0 rgba(220, 38, 38, 0.35);
+      border-color: #ef4444;
+    }
+    to {
+      box-shadow: inset 0 0 38px rgba(239, 68, 68, 0.88), 0 6px 0 rgba(220, 38, 38, 0.65);
+      border-color: #b91c1c;
+    }
+  }
+  @keyframes speedPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.24); }
+    100% { transform: scale(1); }
+  }
+  .speed-pop {
+    animation: speedPop 0.35s ease-out;
+  }
+  .btn-3d {
+    transition: transform 0.08s ease, filter 0.1s ease;
+  }
+  .btn-3d:active {
+    transform: translateY(3px);
+  }
+</style>
+</head>
+<body class="flex flex-col items-center justify-center">
+
+<!-- メインコンテナ (100dvh 固定・スクロールなし) -->
+<div id="app" class="w-full max-w-lg h-[100dvh] flex flex-col p-2 sm:p-3 gap-2 relative">
+
+  <!-- トップHUDバー -->
+  <header class="bg-white rounded-2xl px-3 py-1.5 border-2 border-amber-200 shadow-sm flex items-center justify-between shrink-0 gap-1">
+    <div class="flex items-center gap-2.5 sm:gap-3">
+      <div>
+        <div class="text-[10px] font-extrabold text-slate-500 leading-none">スコア</div>
+        <div id="hud-score" class="text-base sm:text-xl font-black text-amber-600 leading-tight">0</div>
+      </div>
+      <div>
+        <div class="text-[10px] font-extrabold text-slate-500 leading-none">ハイスコア</div>
+        <div id="hud-best" class="text-base sm:text-xl font-black text-blue-600 leading-tight">0</div>
+      </div>
+      <!-- スピード倍率バッジ -->
+      <div id="hud-speed-box" class="bg-purple-100 border-2 border-purple-400 text-purple-800 px-2 py-0.5 rounded-xl flex flex-col items-center leading-none">
+        <span class="text-[9px] font-extrabold opacity-80">スピード</span>
+        <span id="hud-speed" class="text-xs sm:text-sm font-black">×1.0</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <button id="btn-sound" aria-label="おと切り替え" class="btn-3d w-9 h-9 rounded-xl bg-slate-100 border-2 border-slate-300 flex items-center justify-center text-base shadow-sm cursor-pointer">
+        🔊
+      </button>
+      <button id="btn-reset" aria-label="タイトルへもどる" class="btn-3d px-2.5 h-9 rounded-xl bg-slate-100 border-2 border-slate-300 text-slate-700 font-black text-xs flex items-center justify-center shadow-sm cursor-pointer">
+        🏠 タイトル
+      </button>
+    </div>
+  </header>
+
+  <!-- はらう金額パネル -->
+  <section class="bg-white rounded-2xl px-3.5 py-2 border-[3px] border-amber-500 shadow-md flex items-center justify-between shrink-0">
+    <div class="flex flex-col">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span id="hud-diff-badge" class="bg-orange-100 text-orange-700 text-[11px] font-black px-2 py-0.5 rounded-lg">
+          ⭐ ふつう
+        </span>
+        <span id="hud-combo" class="bg-amber-100 border border-amber-400 text-amber-800 text-[11px] font-black px-2 py-0.5 rounded-full transition-transform">
+          ぴったり 0れんぞく
+        </span>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-extrabold text-slate-500 mt-0.5">
+        <span id="hud-orig-target">はらう金額: 0円</span>
+        <span>/</span>
+        <span id="hud-paid-count">おかいもの 0かい</span>
+      </div>
+    </div>
+
+    <div class="flex items-baseline gap-1 shrink-0">
+      <span class="text-xs sm:text-sm font-black text-slate-600 mr-0.5">のこり：</span>
+      <span id="hud-remaining" class="text-3xl sm:text-4xl font-black text-red-600 tracking-tight leading-none drop-shadow-sm">0</span>
+      <span class="text-base sm:text-lg font-black text-slate-800">円</span>
+    </div>
+  </section>
+
+  <!-- ゲームエリア（物理トレイキャンバス） -->
+  <main id="tray-wrapper" class="flex-1 min-h-0 w-full relative bg-amber-50/90 rounded-3xl border-4 border-amber-600 shadow-inner overflow-hidden">
+    <canvas id="gameCanvas" class="block w-full h-full cursor-pointer"></canvas>
+
+    <!-- タイトルオーバーレイ -->
+    <div id="screen-title" class="absolute inset-0 bg-amber-100/95 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-3 overflow-y-auto">
+      <div class="bg-white rounded-3xl p-4 sm:p-5 w-full max-w-md border-[3px] border-amber-500 shadow-xl flex flex-col gap-3">
+        <div class="text-center">
+          <span class="inline-block bg-amber-100 text-amber-700 border border-amber-300 text-[11px] font-black px-3 py-0.5 rounded-full mb-1">
+            あんざん＆パズルゲーム
+          </span>
+          <h1 class="text-xl sm:text-2xl font-black text-amber-600 leading-tight">
+            ぴったり おかいもの！
+            <span class="block text-2xl sm:text-3xl text-red-600 mt-0.5">コインパニック</span>
+          </h1>
+        </div>
+
+        <!-- あそびかた -->
+        <div class="bg-amber-50 border-2 border-dashed border-amber-400 rounded-2xl p-2.5 text-xs font-extrabold text-slate-700 space-y-1">
+          <div class="text-amber-800 font-black text-[13px] mb-0.5">📖 あそびかた</div>
+          <p>🪙 トレイの小銭をタップして<strong>「のこり金額」</strong>をはらおう！</p>
+          <p>✨ <strong>ぴったり0円</strong>ならボーナス＆小銭が1まい消える！</p>
+          <p>💦 金額をこえると<strong>おつりの小銭が上からふってくる！</strong></p>
+          <p>📈 じかんがたつと<strong>だんだんスピードアップ</strong>するぞ！</p>
+        </div>
+
+        <!-- 難易度選択 -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-black text-slate-600 text-center">むずかしさを えらぼう！</div>
+          <div id="diff-buttons" class="grid grid-cols-1 gap-1.5">
+            <button data-diff="easy" class="diff-select-btn btn-3d w-full rounded-2xl p-2.5 text-left border-2 border-emerald-600 bg-emerald-500 text-white shadow-sm flex items-center justify-between cursor-pointer">
+              <div>
+                <div class="font-black text-sm sm:text-base">🌱 やさしい（1・2ねんせい）</div>
+                <div class="text-[11px] font-bold opacity-95">15円〜120円 ／ 1円〜50円玉</div>
+              </div>
+              <span class="text-xs font-black bg-white/25 px-2 py-1 rounded-lg">BEST: <span id="best-easy">0</span></span>
+            </button>
+
+            <button data-diff="normal" class="diff-select-btn btn-3d w-full rounded-2xl p-2.5 text-left border-2 border-blue-700 bg-blue-500 text-white shadow-sm flex items-center justify-between ring-4 ring-amber-400 cursor-pointer">
+              <div>
+                <div class="font-black text-sm sm:text-base">⭐ ふつう（3・4ねんせい）</div>
+                <div class="text-[11px] font-bold opacity-95">40円〜350円 ／ 100円玉もとうじょう</div>
+              </div>
+              <span class="text-xs font-black bg-white/25 px-2 py-1 rounded-lg">BEST: <span id="best-normal">0</span></span>
+            </button>
+
+            <button data-diff="hard" class="diff-select-btn btn-3d w-full rounded-2xl p-2.5 text-left border-2 border-red-700 bg-red-500 text-white shadow-sm flex items-center justify-between cursor-pointer">
+              <div>
+                <div class="font-black text-sm sm:text-base">🔥 むずかしい（こうがくねん）</div>
+                <div class="text-[11px] font-bold opacity-95">120円〜980円 ／ 500円玉あり！</div>
+              </div>
+              <span class="text-xs font-black bg-white/25 px-2 py-1 rounded-lg">BEST: <span id="best-hard">0</span></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- スタートボタン -->
+        <button id="btn-start" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 border-b-4 border-amber-700 text-amber-950 font-black text-lg sm:text-xl shadow-md cursor-pointer">
+          ▶ スタート！
+        </button>
+      </div>
+    </div>
+
+    <!-- ゲームオーバーモーダル -->
+    <div id="screen-gameover" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-5 w-full max-w-sm border-4 border-red-500 shadow-2xl text-center space-y-3">
+        <div class="inline-block bg-red-100 text-red-600 font-black text-xs px-3 py-1 rounded-full">
+          🚨 トレイがいっぱいになった！
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black text-red-600">ゲームオーバー</h2>
+
+        <div class="bg-amber-50 rounded-2xl p-3 border-2 border-amber-200 space-y-2">
+          <div>
+            <div class="text-xs font-extrabold text-slate-500">
+              こんかいのスコア
+              <span id="badge-new-best" class="hidden ml-1 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">NEW RECORD!</span>
+            </div>
+            <div class="text-3xl sm:text-4xl font-black text-amber-600">
+              <span id="res-score">0</span> <span class="text-base">てん</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-amber-200">
+            <div class="bg-white rounded-xl p-2 border border-amber-100">
+              <div class="text-[10px] font-extrabold text-slate-500">ハイスコア</div>
+              <div class="text-base font-black text-blue-600"><span id="res-best">0</span></div>
+            </div>
+            <div class="bg-white rounded-xl p-2 border border-amber-100">
+              <div class="text-[10px] font-extrabold text-slate-500">おかいもの</div>
+              <div class="text-base font-black text-emerald-600"><span id="res-paid">0</span><span class="text-[11px]">かい</span></div>
+            </div>
+            <div class="bg-white rounded-xl p-2 border border-amber-100">
+              <div class="text-[10px] font-extrabold text-slate-500">とうたつ速度</div>
+              <div class="text-base font-black text-purple-600"><span id="res-speed">×1.0</span></div>
+            </div>
+          </div>
+
+          <div class="text-[11px] font-extrabold text-slate-500">
+            さいだいコンボ：<span id="res-max-combo" class="text-amber-600 font-black">0</span> れんぞく
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button id="btn-retry" class="btn-3d flex-1 py-3 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-500 border-b-4 border-amber-700 text-amber-950 font-black text-base shadow cursor-pointer">
+            🔄 もういちどあそぶ
+          </button>
+          <button id="btn-go-title" class="btn-3d px-4 py-3 rounded-2xl bg-slate-200 border-b-4 border-slate-400 text-slate-700 font-black text-sm shadow cursor-pointer">
+            🏠 タイトルへ
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================
+  // 1. Web Audio API 効果音エンジン（外部音声URL不使用）
+  // =========================================================
+  class SoundEngine {
+    constructor() {
+      this.ctx = null;
+      this.muted = false;
+    }
+    unlock() {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+    toggle() {
+      this.muted = !this.muted;
+      return this.muted;
+    }
+    playCoin(value) {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc1 = this.ctx.createOscillator();
+      const osc2 = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      const baseFreq = value >= 500 ? 1250 : value >= 100 ? 1500 : value >= 10 ? 1850 : 2200;
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(baseFreq, now);
+      osc1.frequency.exponentialRampToValueAtTime(baseFreq * 1.48, now + 0.08);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(baseFreq * 2.2, now);
+
+      gain.gain.setValueAtTime(0.24, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.17);
+      osc2.stop(now + 0.17);
+    }
+    playClink() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2400 + Math.random() * 400, now);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+    playExact() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((f, i) => {
+        const t = this.ctx.currentTime + i * 0.055;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.25);
+      });
+    }
+    playChangeRain() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      for (let i = 0; i < 4; i++) {
+        const t = this.ctx.currentTime + i * 0.045;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(460 - i * 45, t);
+        osc.frequency.linearRampToValueAtTime(220, t + 0.12);
+        gain.gain.setValueAtTime(0.11, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.14);
+      }
+    }
+    playSpeedUp() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const notes = [587.33, 739.99, 880.0, 1174.66];
+      notes.forEach((f, i) => {
+        const t = this.ctx.currentTime + i * 0.04;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.18, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.17);
+      });
+    }
+    playWarning() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(920, t);
+      gain.gain.setValueAtTime(0.07, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.06);
+    }
+    playGameOver() {
+      if (this.muted) return;
+      this.unlock();
+      if (!this.ctx) return;
+      const notes = [392.0, 349.23, 329.63, 261.63];
+      notes.forEach((f, i) => {
+        const t = this.ctx.currentTime + i * 0.14;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.33);
+      });
+    }
+  }
+
+  const sfx = new SoundEngine();
+
+  // =========================================================
+  // 2. 日本の硬貨スペック（金額に応じてサイズを段階的に拡大）
+  // =========================================================
+  const COINS = {
+    1: {
+      value: 1,
+      radius: 18,
+      label: '1',
+      fill: '#e2e8f0',
+      rim: '#94a3b8',
+      text: '#0f172a',
+      hole: false,
+      ridged: false,
+      bicolor: false,
+      mass: 1.0
+    },
+    5: {
+      value: 5,
+      radius: 21,
+      label: '5',
+      fill: '#facc15',
+      rim: '#ca8a04',
+      text: '#422006',
+      hole: true,
+      ridged: false,
+      bicolor: false,
+      mass: 1.25
+    },
+    10: {
+      value: 10,
+      radius: 24,
+      label: '10',
+      fill: '#d97706',
+      rim: '#78350f',
+      text: '#ffffff',
+      hole: false,
+      ridged: false,
+      bicolor: false,
+      mass: 1.5
+    },
+    50: {
+      value: 50,
+      radius: 27,
+      label: '50',
+      fill: '#f1f5f9',
+      rim: '#64748b',
+      text: '#0f172a',
+      hole: true,
+      ridged: false,
+      bicolor: false,
+      mass: 1.8
+    },
+    100: {
+      value: 100,
+      radius: 30,
+      label: '100',
+      fill: '#f8fafc',
+      rim: '#475569',
+      text: '#0f172a',
+      hole: false,
+      ridged: true,
+      bicolor: false,
+      mass: 2.1
+    },
+    500: {
+      value: 500,
+      radius: 34,
+      label: '500',
+      fill: '#fef08a',
+      rim: '#a16207',
+      innerFill: '#e2e8f0',
+      text: '#1e293b',
+      hole: false,
+      ridged: false,
+      bicolor: true,
+      mass: 2.6
+    }
+  };
+
+  // 難易度設定（速すぎた版と遅すぎた版のちょうど中間バランス）
+  const MODES = {
+    easy: {
+      label: '🌱 やさしい',
+      coins: [1, 5, 10, 50],
+      weights: { 1: 1, 5: 2, 10: 4, 50: 4 },
+      minTarget: 15,
+      maxTarget: 120,
+      baseInterval: 2.60,    // 初期落下間隔 2.60秒
+      minInterval: 0.85,     // 最短落下間隔 0.85秒
+      initCoins: 6,
+      bulkyLevel: 1
+    },
+    normal: {
+      label: '⭐ ふつう',
+      coins: [1, 5, 10, 50, 100],
+      weights: { 1: 1, 5: 1, 10: 2, 50: 4, 100: 5 },
+      minTarget: 40,
+      maxTarget: 350,
+      baseInterval: 2.25,    // 初期落下間隔 2.25秒
+      minInterval: 0.75,     // 最短落下間隔 0.75秒
+      initCoins: 7,
+      bulkyLevel: 2
+    },
+    hard: {
+      label: '🔥 むずかしい',
+      coins: [1, 5, 10, 50, 100, 500],
+      weights: { 1: 1, 5: 1, 10: 2, 50: 3, 100: 5, 500: 4 },
+      minTarget: 120,
+      maxTarget: 980,
+      baseInterval: 1.90,    // 初期落下間隔 1.90秒
+      minInterval: 0.65,     // 最短落下間隔 0.65秒
+      initCoins: 8,
+      bulkyLevel: 3
+    }
+  };
+
+  // 加速カーブ共通パラメータ
+  const TIME_ACCEL_RATE = 0.011;
+  const PAID_ACCEL_RATE = 0.032;
+  const SPEED_MILESTONE_STEP = 0.25;
+
+  // =========================================================
+  // 3. ゲーム状態・ハイスコア管理
+  // =========================================================
+  const BEST_KEYS = {
+    easy: 'coin_panic_mid_best_easy',
+    normal: 'coin_panic_mid_best_normal',
+    hard: 'coin_panic_mid_best_hard'
+  };
+
+  function getBest(diff) {
+    return parseInt(localStorage.getItem(BEST_KEYS[diff]) || '0', 10) || 0;
+  }
+  function setBest(diff, val) {
+    try {
+      localStorage.setItem(BEST_KEYS[diff], String(val));
+    } catch (_) {}
+  }
+
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const trayWrapper = document.getElementById('tray-wrapper');
+
+  const state = {
+    phase: 'title', // 'title' | 'playing' | 'gameover'
+    diff: 'normal',
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    paidCount: 0,
+    origTarget: 0,
+    remTarget: 0,
+    coins: [],
+    particles: [],
+    banners: [],
+    elapsedTime: 0,
+    speedMultiplier: 1.0,
+    lastSpeedMilestone: 1.0,
+    spawnTimer: 0,
+    spawnInterval: 2.25,
+    nextCoinSpec: COINS[100],
+    nextDropRatioX: 0.5,
+    dangerTime: 0,
+    lastWarnStep: 0,
+    lastClinkTime: 0,
+    width: 360,
+    height: 520,
+    scale: 1,
+    deadlineY: 84,
+    lastFrameTime: 0
+  };
+
+  let nextEntityId = 1;
+
+  // =========================================================
+  // 4. レスポンシブ・キャンバスリサイズ
+  // =========================================================
+  function resizeCanvas() {
+    const rect = trayWrapper.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    state.width = Math.max(260, rect.width);
+    state.height = Math.max(280, rect.height);
+
+    canvas.width = Math.floor(state.width * dpr);
+    canvas.height = Math.floor(state.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const prevScale = state.scale || 1;
+    state.scale = Math.max(0.82, Math.min(1.25, state.width / 380));
+    state.deadlineY = Math.max(66, state.height * 0.165);
+
+    if (state.coins.length > 0 && prevScale !== state.scale) {
+      const ratio = state.scale / prevScale;
+      for (const c of state.coins) {
+        c.r = c.spec.radius * state.scale;
+        c.x = Math.max(c.r + 3, Math.min(state.width - c.r - 3, c.x * ratio));
+        c.y = Math.min(state.height - c.r - 2, c.y);
+      }
+    }
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+
+  // =========================================================
+  // 5. 落下スピード加速計算（時間経過 + 支払い回数）
+  // =========================================================
+  function updateSpeedAndInterval() {
+    const cfg = MODES[state.diff];
+    const maxMult = cfg.baseInterval / cfg.minInterval;
+
+    // スピード倍率 = 1 + (経過秒数 * 0.011) + (クリア数 * 0.032)
+    const rawMult = 1.0 + (state.elapsedTime * TIME_ACCEL_RATE) + (state.paidCount * PAID_ACCEL_RATE);
+    state.speedMultiplier = Math.min(maxMult, rawMult);
+    state.spawnInterval = Math.max(cfg.minInterval, cfg.baseInterval / state.speedMultiplier);
+
+    // 倍率が 0.25 上がるごとに「⚡ スピードアップ！」演出と効果音
+    const currentStep = Math.floor((state.speedMultiplier + 0.0001) / SPEED_MILESTONE_STEP) * SPEED_MILESTONE_STEP;
+    if (currentStep >= state.lastSpeedMilestone + (SPEED_MILESTONE_STEP - 0.001)) {
+      state.lastSpeedMilestone = currentStep;
+      sfx.playSpeedUp();
+      emitBanner(
+        state.width / 2,
+        state.deadlineY + 34,
+        `⚡ スピードアップ！ ×${state.speedMultiplier.toFixed(1)}`,
+        '#9333ea',
+        23
+      );
+      const speedBox = document.getElementById('hud-speed-box');
+      speedBox.classList.remove('speed-pop');
+      void speedBox.offsetWidth;
+      speedBox.classList.add('speed-pop');
+    }
+  }
+
+  // =========================================================
+  // 6. 硬貨スポーン & お題ジェネレーター（上限張り付き防止済み）
+  // =========================================================
+  function pickWeightedCoinSpec() {
+    const cfg = MODES[state.diff];
+    const pool = [];
+    for (const val of cfg.coins) {
+      const w = cfg.weights[val] || 1;
+      for (let i = 0; i < w; i++) pool.push(COINS[val]);
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function spawnCoin(spec, x = null, y = null, vy = 65) {
+    const r = spec.radius * state.scale;
+    const pad = r + 6;
+    const sx = x !== null
+      ? Math.max(pad, Math.min(state.width - pad, x))
+      : pad + Math.random() * Math.max(10, state.width - pad * 2);
+    const sy = y !== null ? y : -r - 8;
+
+    state.coins.push({
+      id: nextEntityId++,
+      spec,
+      value: spec.value,
+      r,
+      mass: spec.mass,
+      x: sx,
+      y: sy,
+      vx: (Math.random() - 0.5) * 28,
+      vy,
+      angle: (Math.random() - 0.5) * 0.35,
+      vAngle: (Math.random() - 0.5) * 1.3,
+      grace: 1.35
+    });
+  }
+
+  function queueNextDrop() {
+    state.nextCoinSpec = pickWeightedCoinSpec();
+    state.nextDropRatioX = 0.14 + Math.random() * 0.72;
+  }
+
+  function computePayableSums(coinValues, limit) {
+    const achievable = new Uint8Array(limit + 1);
+    achievable[0] = 1;
+    for (let i = 0; i < coinValues.length; i++) {
+      const v = coinValues[i];
+      for (let s = limit; s >= v; s--) {
+        if (achievable[s - v]) achievable[s] = 1;
+      }
+    }
+    return achievable;
+  }
+
+  // 盤面にコインが大量にたまっても上限値に張り付かず、難易度の最小値〜最大値の範囲からランダム抽選
+  function generatePanicTarget() {
+    const cfg = MODES[state.diff];
+
+    if (state.coins.length < 3) {
+      for (let i = 0; i < 3; i++) {
+        spawnCoin(pickWeightedCoinSpec(), null, -20 - i * 36, 85);
+      }
+    }
+
+    const values = state.coins.map(c => c.value);
+    const totalTray = values.reduce((a, b) => a + b, 0);
+
+    // 盤面の合計金額より必ず小さくし、詰みを防ぎつつ上限張り付きを防ぐ
+    const upperBound = Math.max(1, Math.min(cfg.maxTarget, Math.floor(totalTray * 0.85)));
+    const lowerBound = Math.max(1, Math.min(upperBound, cfg.minTarget));
+
+    if (upperBound <= lowerBound) {
+      state.origTarget = upperBound;
+      state.remTarget = upperBound;
+      updateHUD();
+      return;
+    }
+
+    const achievable = computePayableSums(values, upperBound);
+
+    // 1. 難易度レンジ [lowerBound, upperBound] 全体から均等にランダム抽選
+    let candidate = lowerBound + Math.floor(Math.random() * (upperBound - lowerBound + 1));
+
+    // 2. 前回と同じ金額の連続を回避
+    if (candidate === state.origTarget && upperBound > lowerBound) {
+      candidate = lowerBound + ((candidate - lowerBound + 1 + Math.floor(Math.random() * (upperBound - lowerBound))) % (upperBound - lowerBound + 1));
+    }
+
+    // 3. 簡単にぴったり払える金額だった場合、68%の確率で数円ずらして端数を作る（意地悪お題）
+    if (achievable[candidate] === 1 && Math.random() < 0.68) {
+      const offsets = [-4, -3, -2, -1, 1, 2, 3, 4];
+      for (let i = offsets.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [offsets[i], offsets[j]] = [offsets[j], offsets[i]];
+      }
+      for (const off of offsets) {
+        const nudged = candidate + off;
+        if (nudged >= lowerBound && nudged <= upperBound && achievable[nudged] === 0) {
+          candidate = nudged;
+          break;
+        }
+      }
+    }
+
+    state.origTarget = candidate;
+    state.remTarget = candidate;
+    updateHUD();
+  }
+
+  // お釣り生成（小銭を少し多めに混ぜてパニック感を演出）
+  function spawnBulkyChange(changeAmount) {
+    let rem = changeAmount;
+    const bulkyCoins = [];
+    const level = MODES[state.diff].bulkyLevel;
+
+    const targetCount = Math.min(6, Math.max(3, 2 + level + Math.floor(Math.random() * 2)));
+
+    while (rem >= 100 && bulkyCoins.length < targetCount - 2) {
+      if (rem >= 500 && Math.random() < 0.4) {
+        bulkyCoins.push(COINS[500]);
+        rem -= 500;
+      } else if (Math.random() < 0.6) {
+        bulkyCoins.push(COINS[100]);
+        rem -= 100;
+      } else {
+        bulkyCoins.push(COINS[50]);
+        rem -= 50;
+      }
+    }
+
+    while (rem > 0) {
+      const needMoreCoins = bulkyCoins.length < targetCount;
+      if (rem >= 50 && !needMoreCoins) {
+        bulkyCoins.push(COINS[50]);
+        rem -= 50;
+      } else if (rem >= 10 && (!needMoreCoins || Math.random() < 0.55)) {
+        bulkyCoins.push(COINS[10]);
+        rem -= 10;
+      } else if (rem >= 5 && (Math.random() < 0.7 || rem < 10)) {
+        bulkyCoins.push(COINS[5]);
+        rem -= 5;
+      } else {
+        bulkyCoins.push(COINS[1]);
+        rem -= 1;
+      }
+
+      if (bulkyCoins.length >= 6 && rem > 0) {
+        const denoms = [500, 100, 50, 10, 5, 1];
+        for (const d of denoms) {
+          while (rem >= d) {
+            bulkyCoins.push(COINS[d]);
+            rem -= d;
+          }
+        }
+        break;
+      }
+    }
+
+    bulkyCoins.sort(() => Math.random() - 0.5);
+    bulkyCoins.forEach((spec, idx) => {
+      const lane = (idx + 0.5) / bulkyCoins.length;
+      const jitter = (Math.random() - 0.5) * 0.12;
+      const dropX = state.width * Math.max(0.1, Math.min(0.9, lane + jitter));
+      const dropY = -18 - idx * 24;
+      spawnCoin(spec, dropX, dropY, 120 + Math.random() * 50);
+    });
+  }
+
+  // =========================================================
+  // 7. エフェクト（ポップパーティクル & バナー）
+  // =========================================================
+  function emitPopParticles(x, y, color, count = 11) {
+    for (let i = 0; i < count; i++) {
+      const a = (Math.PI * 2 * i) / count + Math.random() * 0.35;
+      const spd = 85 + Math.random() * 145;
+      state.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * spd,
+        vy: Math.sin(a) * spd - 45,
+        r: 3 + Math.random() * 3.8,
+        color,
+        life: 0.42 + Math.random() * 0.18,
+        maxLife: 0.6
+      });
+    }
+  }
+
+  function emitBanner(x, y, text, color, size = 23) {
+    state.banners.push({
+      x: Math.max(85, Math.min(state.width - 85, x)),
+      y: Math.max(44, Math.min(state.height - 44, y)),
+      text,
+      color,
+      size,
+      life: 1.0,
+      maxLife: 1.0
+    });
+  }
+
+  // =========================================================
+  // 8. タップ操作・支払い処理
+  // =========================================================
+  function onTrayPointerDown(e) {
+    if (state.phase !== 'playing') return;
+    e.preventDefault();
+    sfx.unlock();
+
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    let targetCoin = null;
+    let minDist = Infinity;
+
+    for (let i = state.coins.length - 1; i >= 0; i--) {
+      const c = state.coins[i];
+      const d = Math.hypot(px - c.x, py - c.y);
+      if (d <= c.r + 10 && d < minDist) {
+        minDist = d;
+        targetCoin = c;
+      }
+    }
+
+    if (!targetCoin) return;
+
+    state.coins = state.coins.filter(c => c.id !== targetCoin.id);
+    sfx.playCoin(targetCoin.value);
+    emitPopParticles(targetCoin.x, targetCoin.y, targetCoin.spec.fill, 12);
+
+    state.remTarget -= targetCoin.value;
+
+    if (state.remTarget > 0) {
+      emitBanner(targetCoin.x, targetCoin.y - 10, `-${targetCoin.value}円`, '#2563eb', 19);
+      updateHUD();
+    } else if (state.remTarget === 0) {
+      // ぴったり成功！
+      state.paidCount += 1;
+      state.combo += 1;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+      const speedBonus = Math.round(state.speedMultiplier * 40);
+      const bonus = 150 + state.origTarget + state.combo * 60 + speedBonus;
+      state.score += bonus;
+
+      sfx.playExact();
+      emitBanner(targetCoin.x, targetCoin.y - 18, `ぴったり！ +${bonus}`, '#10b981', 25);
+
+      // ごほうびとして盤面のコインを1枚消去
+      if (state.coins.length > 2) {
+        const rmIdx = Math.floor(Math.random() * state.coins.length);
+        const extra = state.coins.splice(rmIdx, 1)[0];
+        emitPopParticles(extra.x, extra.y, '#34d399', 14);
+      }
+
+      updateSpeedAndInterval();
+      generatePanicTarget();
+    } else {
+      // オーバーペイ（お釣り発生）
+      const change = Math.abs(state.remTarget);
+      state.paidCount += 1;
+      state.combo = 0;
+
+      const pts = Math.max(30, Math.floor(state.origTarget * 0.4));
+      state.score += pts;
+
+      sfx.playChangeRain();
+      emitBanner(targetCoin.x, targetCoin.y - 18, `おつり ${change}円！`, '#ef4444', 24);
+
+      updateSpeedAndInterval();
+      spawnBulkyChange(change);
+      generatePanicTarget();
+    }
+
+    if (state.score > getBest(state.diff)) {
+      setBest(state.diff, state.score);
+    }
+    updateHUD();
+  }
+
+  canvas.addEventListener('pointerdown', onTrayPointerDown);
+
+  // =========================================================
+  // 9. 2D 物理演算（重力・壁・反復円衝突解決で安定積み上げ）
+  // =========================================================
+  function stepPhysics(dt) {
+    const gravity = 820;
+    const subSteps = 5;
+    const sdt = dt / subSteps;
+
+    for (let s = 0; s < subSteps; s++) {
+      for (const c of state.coins) {
+        c.vy += gravity * sdt;
+        c.x += c.vx * sdt;
+        c.y += c.vy * sdt;
+        c.angle += c.vAngle * sdt;
+
+        if (c.x - c.r < 0) {
+          c.x = c.r;
+          c.vx = Math.abs(c.vx) * 0.3;
+          c.vAngle *= 0.8;
+        } else if (c.x + c.r > state.width) {
+          c.x = state.width - c.r;
+          c.vx = -Math.abs(c.vx) * 0.3;
+          c.vAngle *= 0.8;
+        }
+
+        if (c.y + c.r > state.height) {
+          c.y = state.height - c.r;
+          if (c.vy > 140 && state.elapsedTime - state.lastClinkTime > 0.08) {
+            state.lastClinkTime = state.elapsedTime;
+            sfx.playClink();
+          }
+          if (c.vy > 0) c.vy = -c.vy * 0.18;
+          c.vx *= 0.85;
+          c.vAngle *= 0.8;
+        }
+      }
+
+      const n = state.coins.length;
+      for (let i = 0; i < n; i++) {
+        const a = state.coins[i];
+        for (let j = i + 1; j < n; j++) {
+          const b = state.coins[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const minDist = a.r + b.r;
+          const d2 = dx * dx + dy * dy;
+
+          if (d2 < minDist * minDist) {
+            const d = Math.sqrt(d2) || 0.001;
+            const nx = dx / d;
+            const ny = dy / d;
+            const overlap = minDist - d;
+
+            const totalM = a.mass + b.mass;
+            const invA = b.mass / totalM;
+            const invB = a.mass / totalM;
+
+            a.x -= nx * overlap * invA;
+            a.y -= ny * overlap * invA;
+            b.x += nx * overlap * invB;
+            b.y += ny * overlap * invB;
+
+            const rvx = b.vx - a.vx;
+            const rvy = b.vy - a.vy;
+            const velNorm = rvx * nx + rvy * ny;
+
+            if (velNorm < 0) {
+              if (velNorm < -180 && state.elapsedTime - state.lastClinkTime > 0.09) {
+                state.lastClinkTime = state.elapsedTime;
+                sfx.playClink();
+              }
+              const restitution = 0.16;
+              const jImp = -(1 + restitution) * velNorm / (1 / a.mass + 1 / b.mass);
+              a.vx -= (jImp * nx) / a.mass;
+              a.vy -= (jImp * ny) / a.mass;
+              b.vx += (jImp * nx) / b.mass;
+              b.vy += (jImp * ny) / b.mass;
+
+              a.vx *= 0.92;
+              b.vx *= 0.92;
+              a.vAngle *= 0.88;
+              b.vAngle *= 0.88;
+            }
+          }
+        }
+      }
+    }
+
+    for (const c of state.coins) {
+      if (c.grace > 0) c.grace -= dt;
+      if (Math.abs(c.vx) < 2 && Math.abs(c.vy) < 2 && c.y + c.r >= state.height - 1) {
+        c.vx = 0;
+        c.vy = 0;
+        c.vAngle = 0;
+      }
+    }
+  }
+
+  // =========================================================
+  // 10. メイン更新 & デッドライン判定 (1.65秒超過でゲームオーバー)
+  // =========================================================
+  const DEADLINE_LIMIT = 1.65;
+
+  function update(dt) {
+    if (state.phase !== 'playing') return;
+
+    state.elapsedTime += dt;
+    updateSpeedAndInterval();
+
+    hudSpeed.textContent = `×${state.speedMultiplier.toFixed(1)}`;
+    updateSpeedBadgeColor();
+
+    state.spawnTimer += dt;
+    if (state.spawnTimer >= state.spawnInterval) {
+      state.spawnTimer = 0;
+      const dropVy = 65 + (state.speedMultiplier - 1) * 45;
+      spawnCoin(state.nextCoinSpec, state.nextDropRatioX * state.width, -24, dropVy);
+      queueNextDrop();
+    }
+
+    stepPhysics(dt);
+
+    let breached = false;
+    for (const c of state.coins) {
+      if (c.grace <= 0 && (c.y - c.r) < state.deadlineY) {
+        breached = true;
+        break;
+      }
+    }
+
+    if (breached) {
+      state.dangerTime += dt;
+      trayWrapper.classList.add('danger-pulse');
+
+      const step = Math.floor(state.dangerTime * 4);
+      if (step !== state.lastWarnStep && state.dangerTime < DEADLINE_LIMIT) {
+        state.lastWarnStep = step;
+        sfx.playWarning();
+      }
+
+      if (state.dangerTime >= DEADLINE_LIMIT) {
+        triggerGameOver();
+        return;
+      }
+    } else {
+      state.dangerTime = Math.max(0, state.dangerTime - dt * 2.5);
+      state.lastWarnStep = 0;
+      trayWrapper.classList.remove('danger-pulse');
+    }
+
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const p = state.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 350 * dt;
+      p.life -= dt;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+
+    for (let i = state.banners.length - 1; i >= 0; i--) {
+      const b = state.banners[i];
+      b.y -= 46 * dt;
+      b.life -= dt;
+      if (b.life <= 0) state.banners.splice(i, 1);
+    }
+  }
+
+  // =========================================================
+  // 11. 硬貨 & ステージ描画
+  // =========================================================
+  function drawCoin(c) {
+    const { x, y, r, spec, angle } = c;
+    ctx.save();
+    ctx.translate(x, y);
+
+    ctx.beginPath();
+    ctx.arc(2, 3, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    ctx.fill();
+
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = spec.fill;
+    ctx.fill();
+    ctx.lineWidth = Math.max(2.5, r * 0.11);
+    ctx.strokeStyle = spec.rim;
+    ctx.stroke();
+
+    if (spec.ridged) {
+      ctx.save();
+      ctx.setLineDash([2.5, 2.5]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.84, 0, Math.PI * 2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#64748b';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (spec.bicolor) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+      ctx.fillStyle = spec.innerFill;
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = '#ca8a04';
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(-r * 0.28, -r * 0.28, r * 0.24, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.fill();
+
+    if (spec.hole) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.21, 0, Math.PI * 2);
+      ctx.fillStyle = '#fffbeb';
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = spec.rim;
+      ctx.stroke();
+    }
+
+    ctx.rotate(-angle);
+    ctx.fillStyle = spec.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (spec.hole) {
+      const fSize = Math.round(r * 0.56);
+      ctx.font = `900 ${fSize}px 'M PLUS Rounded 1c', sans-serif`;
+      ctx.fillText(spec.label, 0, -r * 0.48);
+      ctx.fillText('円', 0, r * 0.52);
+    } else {
+      const fSize = Math.round(r * (spec.label.length >= 3 ? 0.64 : 0.82));
+      ctx.font = `900 ${fSize}px 'M PLUS Rounded 1c', sans-serif`;
+      ctx.fillText(spec.label, 0, 1);
+    }
+
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, state.width, state.height);
+
+    // 方眼背景
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.13)';
+    ctx.lineWidth = 1;
+    const step = 34;
+    for (let x = step; x < state.width; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, state.height);
+      ctx.stroke();
+    }
+    for (let y = step; y < state.height; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(state.width, y);
+      ctx.stroke();
+    }
+
+    // 次に落ちてくるコイン予告ガイド＆落下カウントゲージ
+    if (state.phase === 'playing' && state.nextCoinSpec) {
+      const gx = state.nextDropRatioX * state.width;
+      const gr = state.nextCoinSpec.radius * state.scale * 0.68;
+      const dropProgress = Math.min(1, state.spawnTimer / state.spawnInterval);
+
+      ctx.save();
+      ctx.setLineDash([4, 5]);
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gx, 26);
+      ctx.lineTo(gx, state.deadlineY);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(gx, 22, gr + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dropProgress);
+      ctx.strokeStyle = state.speedMultiplier >= 2.0 ? '#dc2626' : '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.84;
+      drawCoin({ x: gx, y: 22, r: gr, spec: state.nextCoinSpec, angle: 0 });
+      ctx.restore();
+    }
+
+    // デッドライン（赤い点線）
+    ctx.save();
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = state.dangerTime > 0 ? '#dc2626' : 'rgba(239, 68, 68, 0.72)';
+    ctx.lineWidth = state.dangerTime > 0 ? 3.5 : 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, state.deadlineY);
+    ctx.lineTo(state.width, state.deadlineY);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.font = "900 11px 'M PLUS Rounded 1c', sans-serif";
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.85)';
+    ctx.textAlign = 'right';
+    ctx.fillText('▲ ここまで！（1.65びょうこえるとアウト）', state.width - 10, state.deadlineY - 6);
+
+    for (const c of state.coins) {
+      drawCoin(c);
+    }
+
+    for (const p of state.particles) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    for (const b of state.banners) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (b.life / b.maxLife) * 1.4);
+      ctx.font = `900 ${b.size}px 'M PLUS Rounded 1c', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeText(b.text, b.x, b.y);
+      ctx.fillStyle = b.color;
+      ctx.fillText(b.text, b.x, b.y);
+      ctx.restore();
+    }
+
+    // 危険ゲージ＆カウントダウン表示（画面上部・デッドライン直下）
+    if (state.phase === 'playing' && state.dangerTime > 0.05) {
+      const ratio = Math.min(1, state.dangerTime / DEADLINE_LIMIT);
+      const remain = Math.max(0, DEADLINE_LIMIT - state.dangerTime).toFixed(2);
+      const boxW = Math.min(250, state.width - 32);
+      const boxH = 42;
+      const bx = (state.width - boxW) / 2;
+      const by = state.deadlineY + 12;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, boxW, boxH, 12);
+      ctx.fill();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.roundRect(bx + 4, by + 4, (boxW - 8) * ratio, boxH - 8, 9);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "900 15px 'M PLUS Rounded 1c', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`🚨 あぶない！あと ${remain}びょう`, state.width / 2, by + boxH / 2);
+      ctx.restore();
+    }
+  }
+
+  function loop(ts) {
+    if (!state.lastFrameTime) state.lastFrameTime = ts;
+    const dt = Math.min(0.05, Math.max(0, (ts - state.lastFrameTime) / 1000));
+    state.lastFrameTime = ts;
+
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // =========================================================
+  // 12. UI・画面遷移コントロール
+  // =========================================================
+  const hudScore = document.getElementById('hud-score');
+  const hudBest = document.getElementById('hud-best');
+  const hudSpeed = document.getElementById('hud-speed');
+  const hudSpeedBox = document.getElementById('hud-speed-box');
+  const hudCombo = document.getElementById('hud-combo');
+  const hudDiffBadge = document.getElementById('hud-diff-badge');
+  const hudPaidCount = document.getElementById('hud-paid-count');
+  const hudOrigTarget = document.getElementById('hud-orig-target');
+  const hudRemaining = document.getElementById('hud-remaining');
+
+  const screenTitle = document.getElementById('screen-title');
+  const screenGameover = document.getElementById('screen-gameover');
+
+  function updateSpeedBadgeColor() {
+    if (state.speedMultiplier >= 2.25) {
+      hudSpeedBox.className = 'bg-red-100 border-2 border-red-500 text-red-700 px-2 py-0.5 rounded-xl flex flex-col items-center leading-none';
+    } else if (state.speedMultiplier >= 1.5) {
+      hudSpeedBox.className = 'bg-amber-100 border-2 border-amber-500 text-amber-800 px-2 py-0.5 rounded-xl flex flex-col items-center leading-none';
+    } else {
+      hudSpeedBox.className = 'bg-purple-100 border-2 border-purple-400 text-purple-800 px-2 py-0.5 rounded-xl flex flex-col items-center leading-none';
+    }
+  }
+
+  function refreshTitleBests() {
+    document.getElementById('best-easy').textContent = getBest('easy').toLocaleString();
+    document.getElementById('best-normal').textContent = getBest('normal').toLocaleString();
+    document.getElementById('best-hard').textContent = getBest('hard').toLocaleString();
+  }
+
+  function updateHUD() {
+    hudScore.textContent = state.score.toLocaleString();
+    hudBest.textContent = getBest(state.diff).toLocaleString();
+    hudSpeed.textContent = `×${state.speedMultiplier.toFixed(1)}`;
+    updateSpeedBadgeColor();
+
+    hudCombo.textContent = `ぴったり ${state.combo}れんぞく`;
+    hudCombo.style.transform = state.combo > 0 ? 'scale(1.06)' : 'scale(1)';
+
+    hudDiffBadge.textContent = MODES[state.diff].label;
+    hudPaidCount.textContent = `おかいもの ${state.paidCount}かい`;
+    hudOrigTarget.textContent = `はらう金額: ${state.origTarget}円`;
+    hudRemaining.textContent = state.remTarget;
+  }
+
+  function selectDifficulty(diffKey) {
+    state.diff = diffKey;
+    document.querySelectorAll('.diff-select-btn').forEach(btn => {
+      if (btn.dataset.diff === diffKey) {
+        btn.classList.add('ring-4', 'ring-amber-400');
+      } else {
+        btn.classList.remove('ring-4', 'ring-amber-400');
+      }
+    });
+    updateHUD();
+  }
+
+  function startGame() {
+    sfx.unlock();
+    const cfg = MODES[state.diff];
+
+    state.phase = 'playing';
+    state.score = 0;
+    state.combo = 0;
+    state.maxCombo = 0;
+    state.paidCount = 0;
+    state.coins = [];
+    state.particles = [];
+    state.banners = [];
+
+    state.elapsedTime = 0;
+    state.speedMultiplier = 1.0;
+    state.lastSpeedMilestone = 1.0;
+    state.spawnTimer = 0;
+    state.spawnInterval = cfg.baseInterval;
+
+    state.dangerTime = 0;
+    state.lastWarnStep = 0;
+
+    trayWrapper.classList.remove('danger-pulse');
+    screenTitle.classList.add('hidden');
+    screenGameover.classList.add('hidden');
+
+    resizeCanvas();
+
+    for (let i = 0; i < cfg.initCoins; i++) {
+      const spec = pickWeightedCoinSpec();
+      const x = state.width * (0.15 + ((i * 0.14) % 0.7));
+      const y = state.height * 0.42 - i * 36;
+      spawnCoin(spec, x, y, 80);
+    }
+
+    queueNextDrop();
+    generatePanicTarget();
+    updateHUD();
+  }
+
+  function triggerGameOver() {
+    state.phase = 'gameover';
+    trayWrapper.classList.remove('danger-pulse');
+    sfx.playGameOver();
+
+    const prevBest = getBest(state.diff);
+    const isNewRecord = state.score > 0 && state.score >= prevBest;
+    if (state.score > prevBest) {
+      setBest(state.diff, state.score);
+    }
+
+    updateHUD();
+    refreshTitleBests();
+
+    document.getElementById('res-score').textContent = state.score.toLocaleString();
+    document.getElementById('res-best').textContent = getBest(state.diff).toLocaleString();
+    document.getElementById('res-paid').textContent = state.paidCount;
+    document.getElementById('res-speed').textContent = `×${state.speedMultiplier.toFixed(1)}`;
+    document.getElementById('res-max-combo').textContent = state.maxCombo;
+
+    const newBadge = document.getElementById('badge-new-best');
+    if (isNewRecord) {
+      newBadge.classList.remove('hidden');
+    } else {
+      newBadge.classList.add('hidden');
+    }
+
+    screenGameover.classList.remove('hidden');
+  }
+
+  function backToTitle() {
+    state.phase = 'title';
+    state.speedMultiplier = 1.0;
+    trayWrapper.classList.remove('danger-pulse');
+    refreshTitleBests();
+    updateHUD();
+    screenGameover.classList.add('hidden');
+    screenTitle.classList.remove('hidden');
+  }
+
+  document.querySelectorAll('.diff-select-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sfx.unlock();
+      selectDifficulty(btn.dataset.diff);
+    });
+  });
+
+  document.getElementById('btn-start').addEventListener('click', startGame);
+  document.getElementById('btn-retry').addEventListener('click', startGame);
+  document.getElementById('btn-reset').addEventListener('click', backToTitle);
+  document.getElementById('btn-go-title').addEventListener('click', backToTitle);
+
+  document.getElementById('btn-sound').addEventListener('click', (e) => {
+    const muted = sfx.toggle();
+    e.currentTarget.textContent = muted ? '🔇' : '🔊';
+  });
+
+  function init() {
+    resizeCanvas();
+    refreshTitleBests();
+    selectDifficulty('normal');
+    requestAnimationFrame(loop);
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>アイスを とどけよう！ドキドキ ランニング</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", "Rounded Mplus 1c", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 60%, #a7f3d0 100%);
+      touch-action: manipulation;
+    }
+
+    body {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    /* 全体の縦3段フレックスコンテナ（タブレット横向きでも絶対に画面内に収める） */
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 960px;
+      height: 100%;
+      max-height: 100%;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 1段目：上部ステータスバー（HUD） */
+    #hud {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      z-index: 10;
+    }
+
+    .hud-pill {
+      background: rgba(255, 255, 255, 0.94);
+      border-radius: 9999px;
+      padding: 5px 12px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .hud-hearts {
+      border: 3px solid #f9a8d4;
+      color: #db2777;
+      font-size: clamp(13px, 2.2vw, 16px);
+    }
+
+    .hud-progress {
+      flex: 1;
+      min-width: 0;
+      border: 3px solid #fcd34d;
+      color: #b45309;
+      font-size: clamp(13px, 2.2vw, 16px);
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 14px;
+      background: #fef3c7;
+      border-radius: 9999px;
+      overflow: hidden;
+      border: 1.5px solid #f59e0b;
+      min-width: 40px;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #fbbf24 0%, #fb7185 100%);
+      border-radius: 9999px;
+      transition: width 0.08s linear;
+    }
+
+    #mute-btn {
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 3px solid #7dd3fc;
+      background: rgba(255, 255, 255, 0.95);
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    }
+    #mute-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* 2段目：真ん中のゲームキャンバス領域（残り高さを自動調整） */
+    #canvas-wrapper {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      border: 4px solid #ffffff;
+      box-shadow: 0 6px 20px rgba(14, 116, 144, 0.18);
+      background: #bae6fd;
+      touch-action: none;
+    }
+
+    /* 3段目：下部コントロールバー（タブレットでも絶対に画面内に表示される領域） */
+    #controls-bar {
+      flex: 0 0 auto;
+      width: 100%;
+      padding: 8px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      z-index: 10;
+    }
+
+    .btn-jump {
+      width: 100%;
+      max-width: 440px;
+      min-height: 64px;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      background: linear-gradient(180deg, #ff758f 0%, #f43f5e 100%);
+      border: 4px solid #ffffff;
+      box-shadow: 0 6px 0 #be123c, 0 10px 20px rgba(190, 18, 60, 0.3);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: clamp(22px, 3.6vw, 28px);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+
+    .btn-jump:active,
+    .btn-jump.pressed {
+      transform: translateY(5px);
+      box-shadow: 0 1px 0 #be123c, 0 4px 8px rgba(190, 18, 60, 0.3);
+    }
+
+    .control-hint {
+      font-size: 12px;
+      font-weight: 700;
+      color: #065f46;
+      background: rgba(255, 255, 255, 0.78);
+      padding: 2px 12px;
+      border-radius: 9999px;
+      text-align: center;
+    }
+
+    /* オーバーレイ画面（スタート・クリア・ゲームオーバー） */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 74, 110, 0.35);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      z-index: 30;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .modal-card {
+      background: rgba(255, 255, 255, 0.97);
+      border-radius: 28px;
+      padding: clamp(16px, 3vh, 26px) clamp(18px, 4vw, 30px);
+      max-width: 460px;
+      width: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-start { border: 5px solid #fbbf24; }
+    .modal-gameover { border: 5px solid #38bdf8; }
+    .modal-clear { border: 5px solid #f472b6; }
+
+    .badge-pill {
+      background: #fce7f3;
+      color: #db2777;
+      border: 2px solid #f9a8d4;
+      border-radius: 9999px;
+      padding: 3px 14px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .game-title {
+      margin: 0;
+      font-size: clamp(22px, 4.2vw, 32px);
+      font-weight: 900;
+      line-height: 1.25;
+      color: #f59e0b;
+      text-shadow: 2px 2px 0 #fef3c7;
+    }
+
+    .game-title span {
+      color: #ec4899;
+      font-size: 0.88em;
+    }
+
+    .story-box {
+      width: 100%;
+      background: linear-gradient(180deg, #e0f2fe 0%, #dcfce7 100%);
+      border: 2px solid #bae6fd;
+      border-radius: 18px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+
+    .story-char {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-weight: 800;
+      font-size: 12px;
+      color: #0369a1;
+    }
+
+    .story-emoji {
+      font-size: clamp(28px, 5vw, 38px);
+      line-height: 1.1;
+    }
+
+    .rule-box {
+      width: 100%;
+      background: #fffbeb;
+      border: 2px solid #fde68a;
+      border-radius: 16px;
+      padding: 10px 12px;
+      font-size: clamp(13px, 2.2vw, 15px);
+      font-weight: 700;
+      color: #334155;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .speed-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .speed-btn {
+      padding: 10px 8px;
+      border-radius: 16px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      border: 3px solid #e2e8f0;
+      background: #f8fafc;
+      color: #64748b;
+      transition: all 0.12s ease;
+    }
+
+    .speed-btn.active-normal {
+      border-color: #34d399;
+      background: #d1fae5;
+      color: #065f46;
+      transform: scale(1.02);
+    }
+
+    .speed-btn.active-fast {
+      border-color: #fb923c;
+      background: #ffedd5;
+      color: #9a3412;
+      transform: scale(1.02);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 9999px;
+      border: 4px solid #ffffff;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: clamp(20px, 3.5vw, 25px);
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18), 0 8px 18px rgba(0, 0, 0, 0.15);
+      transition: transform 0.1s ease;
+    }
+    .btn-primary:active {
+      transform: translateY(4px);
+    }
+
+    .btn-orange { background: linear-gradient(180deg, #fbbf24 0%, #f97316 100%); }
+    .btn-blue { background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%); }
+    .btn-pink { background: linear-gradient(180deg, #f472b6 0%, #e11d48 100%); }
+
+    /* 横向きタブレットなど高さが620px以下の画面向けのコンパクト最適化 */
+    @media (max-height: 620px) {
+      #hud {
+        padding: 4px 10px;
+      }
+      .hud-pill {
+        padding: 3px 10px;
+      }
+      #mute-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 17px;
+      }
+      #controls-bar {
+        padding: 6px 12px 8px;
+      }
+      .btn-jump {
+        min-height: 54px;
+        padding: 8px 20px;
+        font-size: 21px;
+      }
+      .control-hint {
+        display: none;
+      }
+      .modal-card {
+        padding: 12px 18px;
+        gap: 7px;
+      }
+      .story-box {
+        padding: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <!-- 1段目：上部HUD -->
+    <header id="hud">
+      <div class="hud-pill hud-hearts">
+        <span>あと</span>
+        <span id="hearts-display">❤️❤️❤️</span>
+        <span id="chances-text">3かい</span>
+      </div>
+
+      <div class="hud-pill hud-progress">
+        <span title="おとこのこ">👦🍦</span>
+        <div class="progress-track">
+          <div id="progress-fill"></div>
+        </div>
+        <span title="おんなのこ">👧🎀</span>
+        <span id="distance-label" style="min-width: 44px; text-align: right;">300m</span>
+      </div>
+
+      <button id="mute-btn" type="button" aria-label="おとのきりかえ">🔊</button>
+    </header>
+
+    <!-- 2段目：真ん中のゲームキャンバス -->
+    <main id="canvas-wrapper">
+      <canvas id="gameCanvas"></canvas>
+    </main>
+
+    <!-- 3段目：下部の大きなジャンプボタン（常に画面内に固定表示） -->
+    <footer id="controls-bar">
+      <button id="jump-btn" type="button" class="btn-jump">
+        <span>⬆️</span>
+        <span>ジャンプ！</span>
+      </button>
+      <div class="control-hint">ボタンか がめんを タップ！（パソコンは スペースキー）</div>
+    </footer>
+
+    <!-- スタート画面 -->
+    <div id="start-screen" class="overlay">
+      <div class="modal-card modal-start">
+        <div class="badge-pill">🍦 わくわく アイスはいたつ ゲーム 🎀</div>
+        <h1 class="game-title">
+          アイスを とどけよう！<br />
+          <span>ドキドキ ランニング</span>
+        </h1>
+
+        <div class="story-box">
+          <div class="story-char">
+            <span class="story-emoji">👦🍦</span>
+            <span>ぼく</span>
+          </div>
+          <div class="story-char" style="color: #475569;">
+            <span style="background: #fff; padding: 2px 8px; border-radius: 99px; margin-bottom: 2px;">ピョン！と よけよう</span>
+            <span style="font-size: 24px;">🪨 💨</span>
+          </div>
+          <div class="story-char" style="color: #be185d;">
+            <span class="story-emoji">👧💕</span>
+            <span>おんなのこ</span>
+          </div>
+        </div>
+
+        <p class="rule-box">
+          いしを <strong style="color: #db2777;">ジャンプ</strong> で よけて、<br />
+          300mさきの おんなのこに アイスを とどけよう！<br />
+          <strong style="color: #dc2626;">3かい こけたら</strong> ゲームオーバーだよ。
+        </p>
+
+        <div id="record-badge" class="hidden" style="font-size: 13px; font-weight: 800; color: #059669; background: #ecfdf5; border: 1.5px solid #6ee7b7; padding: 3px 12px; border-radius: 99px;">
+          🏆 これまでに とどけた かいすう：0かい
+        </div>
+
+        <div style="width: 100%;">
+          <div style="font-size: 12px; font-weight: 800; color: #64748b; margin-bottom: 5px;">はしる はやさを えらんでね</div>
+          <div class="speed-grid">
+            <button id="speed-normal" type="button" class="speed-btn active-normal">🐢 ふつう</button>
+            <button id="speed-fast" type="button" class="speed-btn">🐇 ちょっと はやい</button>
+          </div>
+        </div>
+
+        <button id="start-btn" type="button" class="btn-primary btn-orange">スタート！</button>
+      </div>
+    </div>
+
+    <!-- ゲームオーバー画面 -->
+    <div id="gameover-screen" class="overlay hidden">
+      <div class="modal-card modal-gameover">
+        <div style="font-size: 48px; line-height: 1.1;">😭🍦💦</div>
+        <h2 style="margin: 0; font-size: 24px; font-weight: 900; color: #0284c7; line-height: 1.3;">
+          ざんねん！<br />アイスが おちちゃった…
+        </h2>
+        <p id="gameover-distance" class="rule-box" style="background: #f0f9ff; border-color: #bae6fd;">
+          あと 120m で ゴールだったよ！<br />つぎは ぜったい とどけられるよ！
+        </p>
+        <button id="retry-btn" type="button" class="btn-primary btn-blue">🔄 もういちど あそぶ</button>
+      </div>
+    </div>
+
+    <!-- ゴールクリア画面 -->
+    <div id="clear-screen" class="overlay hidden">
+      <div class="modal-card modal-clear">
+        <div style="font-size: 42px; line-height: 1.1;">🎉👦🍦👧💖</div>
+        <h2 style="margin: 0; font-size: 25px; font-weight: 900; color: #ec4899; line-height: 1.3;">
+          やったー！<br />アイスを とどけたよ！
+        </h2>
+        <p id="clear-message" class="rule-box">
+          「わあ、おいしそう！ありがとう！」<br />
+          おんなのこが とっても よろこんでいるよ！
+        </p>
+        <div id="clear-total-badge" style="font-size: 13px; font-weight: 800; color: #be185d; background: #fdf2f8; border: 1.5px solid #f9a8d4; padding: 4px 14px; border-radius: 99px;">
+          🎀 とどけた かいすう：1かいめ！
+        </div>
+        <button id="play-again-clear-btn" type="button" class="btn-primary btn-pink">🌟 もういちど あそぶ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * アイスを とどけよう！ドキドキ ランニング
+     * タブレット・スマホ・PCの全画面サイズでジャンプボタンが確実に見えるレスポンシブ実装
+     */
+
+    // ==========================================
+    // 1. 効果音システム（Web Audio API）
+    // ==========================================
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+
+      playJump() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.exponentialRampToValueAtTime(780, now + 0.17);
+
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.19);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playTrip() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.12);
+        osc.frequency.linearRampToValueAtTime(160, now + 0.22);
+        osc.frequency.linearRampToValueAtTime(85, now + 0.35);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.36);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.37);
+      }
+
+      playGoal() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
+        const times = [0, 0.11, 0.22, 0.34, 0.50, 0.64];
+        const durations = [0.1, 0.1, 0.1, 0.14, 0.12, 0.45];
+
+        notes.forEach((freq, i) => {
+          const now = this.ctx.currentTime + times[i];
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.24, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + durations[i]);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + durations[i] + 0.02);
+        });
+      }
+
+      playGameOver() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const notes = [392.00, 369.99, 349.23, 329.63];
+        const times = [0, 0.22, 0.44, 0.68];
+        const durations = [0.2, 0.2, 0.2, 0.55];
+
+        notes.forEach((freq, i) => {
+          const now = this.ctx.currentTime + times[i];
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(900, now);
+
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.008, now + durations[i]);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + durations[i] + 0.02);
+        });
+      }
+    }
+
+    const sfx = new SoundEffects();
+
+    // ==========================================
+    // 2. DOM要素の取得と状態管理
+    // ==========================================
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const heartsDisplayEl = document.getElementById('hearts-display');
+    const chancesTextEl = document.getElementById('chances-text');
+    const progressFillEl = document.getElementById('progress-fill');
+    const distanceLabelEl = document.getElementById('distance-label');
+
+    const startScreenEl = document.getElementById('start-screen');
+    const gameoverScreenEl = document.getElementById('gameover-screen');
+    const clearScreenEl = document.getElementById('clear-screen');
+
+    const startBtn = document.getElementById('start-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const playAgainClearBtn = document.getElementById('play-again-clear-btn');
+    const jumpBtn = document.getElementById('jump-btn');
+    const muteBtn = document.getElementById('mute-btn');
+
+    const speedNormalBtn = document.getElementById('speed-normal');
+    const speedFastBtn = document.getElementById('speed-fast');
+    const gameoverDistanceEl = document.getElementById('gameover-distance');
+    const clearMessageEl = document.getElementById('clear-message');
+    const recordBadgeEl = document.getElementById('record-badge');
+    const clearTotalBadgeEl = document.getElementById('clear-total-badge');
+
+    const GOAL_DISTANCE_METERS = 300;
+    const MAX_LIVES = 3;
+    const STORAGE_KEY = 'icecream_run_clear_count_v1';
+
+    let clearCount = 0;
+    try {
+      clearCount = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10) || 0;
+    } catch (e) {
+      clearCount = 0;
+    }
+
+    function updateClearCountUI() {
+      if (clearCount > 0) {
+        recordBadgeEl.textContent = `🏆 これまでに とどけた かいすう：${clearCount}かい`;
+        recordBadgeEl.classList.remove('hidden');
+      }
+    }
+    updateClearCountUI();
+
+    const state = {
+      phase: 'START',
+      difficulty: 'normal',
+      distance: 0,
+      lives: MAX_LIVES,
+      speed: 350,
+      groundY: 0,
+      width: 600,
+      height: 360,
+      scaleFactor: 1,
+      lastTime: 0,
+      runTimer: 0,
+      shakeTimer: 0,
+
+      boy: {
+        x: 110,
+        y: 0,
+        vy: 0,
+        isJumping: false,
+        squashX: 1,
+        squashY: 1,
+        tripTimer: 0,
+        invincibleTimer: 0,
+        iceWobble: 0
+      },
+
+      rocks: [],
+      nextRockDistance: 30,
+      clouds: [],
+      hills: [],
+      flowers: [],
+      particles: [],
+      droppedIce: null
+    };
+
+    // ==========================================
+    // 3. キャンバスサイズ自動調整（親コンテナにぴったり合わせる）
+    // ==========================================
+    function resizeCanvas() {
+      const rect = canvasWrapper.getBoundingClientRect();
+      const w = Math.max(280, Math.floor(rect.width - 20));
+      const h = Math.max(180, Math.floor(rect.height));
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      state.width = w;
+      state.height = h;
+
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // 画面高さが低いタブレット横向きでもキャラクターが見切れないスケール調整
+      state.scaleFactor = Math.max(0.75, Math.min(1.12, h / 360));
+
+      // 地面の位置（キャンバス下端から約20%の位置）
+      const groundOffset = Math.max(42, Math.min(76, h * 0.2));
+      state.groundY = h - groundOffset;
+
+      // 男の子のX位置
+      state.boy.x = Math.max(64, Math.min(150, w * 0.18));
+      if (!state.boy.isJumping) {
+        state.boy.y = state.groundY;
+      }
+    }
+
+    function initScenery() {
+      state.clouds = [];
+      for (let i = 0; i < 6; i++) {
+        state.clouds.push({
+          x: (state.width / 5) * i + Math.random() * 60,
+          y: 35 + Math.random() * (state.groundY * 0.35),
+          scale: 0.65 + Math.random() * 0.5,
+          speed: 16 + Math.random() * 18
+        });
+      }
+
+      state.hills = [];
+      for (let i = 0; i < 5; i++) {
+        state.hills.push({
+          x: i * 280,
+          radius: 120 + Math.random() * 70,
+          color: i % 2 === 0 ? '#a7f3d0' : '#6ee7b7'
+        });
+      }
+
+      state.flowers = [];
+      const flowerColors = ['#ff758f', '#ffd166', '#ffffff', '#c77dff', '#ff9f1c'];
+      for (let i = 0; i < 16; i++) {
+        state.flowers.push({
+          x: Math.random() * (state.width + 200),
+          offsetRatio: 0.25 + Math.random() * 0.55,
+          color: flowerColors[i % flowerColors.length],
+          size: 4 + Math.random() * 3.5
+        });
+      }
+    }
+
+    // ==========================================
+    // 4. ゲーム開始・ジャンプ・HUD更新
+    // ==========================================
+    function updateHUD() {
+      let heartsStr = '';
+      for (let i = 0; i < MAX_LIVES; i++) {
+        heartsStr += i < state.lives ? '❤️' : '🤍';
+      }
+      heartsDisplayEl.textContent = heartsStr;
+      chancesTextEl.textContent = `${state.lives}かい`;
+
+      const progressPct = Math.min(100, Math.max(0, (state.distance / GOAL_DISTANCE_METERS) * 100));
+      progressFillEl.style.width = `${progressPct}%`;
+      const remaining = Math.max(0, Math.ceil(GOAL_DISTANCE_METERS - state.distance));
+      distanceLabelEl.textContent = `${remaining}m`;
+    }
+
+    function startGame() {
+      sfx.init();
+      resizeCanvas();
+
+      state.phase = 'PLAYING';
+      state.distance = 0;
+      state.lives = MAX_LIVES;
+      state.speed = state.difficulty === 'fast' ? 440 : 340;
+      state.runTimer = 0;
+      state.shakeTimer = 0;
+
+      state.boy.y = state.groundY;
+      state.boy.vy = 0;
+      state.boy.isJumping = false;
+      state.boy.squashX = 1;
+      state.boy.squashY = 1;
+      state.boy.tripTimer = 0;
+      state.boy.invincibleTimer = 0;
+      state.boy.iceWobble = 0;
+
+      state.rocks = [];
+      state.nextRockDistance = 28;
+      state.particles = [];
+      state.droppedIce = null;
+
+      startScreenEl.classList.add('hidden');
+      gameoverScreenEl.classList.add('hidden');
+      clearScreenEl.classList.add('hidden');
+
+      updateHUD();
+    }
+
+    function triggerJump() {
+      if (state.phase !== 'PLAYING') return;
+      if (!state.boy.isJumping) {
+        state.boy.isJumping = true;
+        // 画面高さに応じて適切なジャンプ高さを確保（天井に頭が隠れず、石を余裕で越えられる高さ）
+        const jumpHeightTarget = Math.min(138, state.groundY * 0.62);
+        const gravity = 1950;
+        state.boy.vy = -Math.sqrt(2 * gravity * jumpHeightTarget);
+
+        state.boy.squashX = 0.82;
+        state.boy.squashY = 1.22;
+        sfx.playJump();
+        spawnDust(state.boy.x, state.groundY, 6);
+      }
+    }
+
+    function spawnDust(x, y, count) {
+      for (let i = 0; i < count; i++) {
+        state.particles.push({
+          type: 'dust',
+          x: x + (Math.random() - 0.5) * 20,
+          y: y - 4,
+          vx: -60 - Math.random() * 80,
+          vy: -20 - Math.random() * 55,
+          size: 4 + Math.random() * 4.5,
+          color: '#fef3c7',
+          life: 0.42
+        });
+      }
+    }
+
+    function spawnCelebrationParticles(x, y) {
+      const colors = ['#ff4d6d', '#ffbe0b', '#3a86ff', '#06d6a0', '#ff85a1', '#c77dff'];
+      for (let i = 0; i < 55; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 100 + Math.random() * 290;
+        state.particles.push({
+          type: i % 4 === 0 ? 'heart' : 'confetti',
+          x: x,
+          y: y - 35,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 160,
+          size: 6 + Math.random() * 6,
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 10,
+          color: colors[i % colors.length],
+          life: 2.2 + Math.random() * 1.4
+        });
+      }
+    }
+
+    // ==========================================
+    // 5. メイン更新ループ (Update)
+    // ==========================================
+    function update(dt) {
+      state.clouds.forEach(cloud => {
+        cloud.x -= cloud.speed * dt;
+        if (cloud.x < -120) {
+          cloud.x = state.width + 120;
+        }
+      });
+
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.type === 'confetti' || p.type === 'heart') {
+          p.vy += 350 * dt;
+          p.vx *= 0.98;
+          p.rotation += p.vRot * dt;
+        }
+        p.life -= dt;
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+        }
+      }
+
+      if (state.shakeTimer > 0) {
+        state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+      }
+
+      if (state.phase === 'GOAL_CELEBRATION') {
+        state.runTimer += dt * 8;
+        if (Math.random() < 0.22) {
+          spawnCelebrationParticles(state.boy.x + 55, state.groundY - 35);
+        }
+        return;
+      }
+
+      if (state.phase === 'GAMEOVER' && state.droppedIce) {
+        const ice = state.droppedIce;
+        if (ice.y < state.groundY - 10) {
+          ice.vy += 880 * dt;
+          ice.y += ice.vy * dt;
+          ice.x += ice.vx * dt;
+          ice.rot += ice.vRot * dt;
+        } else {
+          ice.y = state.groundY - 10;
+        }
+        return;
+      }
+
+      if (state.phase !== 'PLAYING') {
+        state.runTimer += dt * 6;
+        scrollGroundDetails(110 * dt);
+        return;
+      }
+
+      const currentSpeed = state.boy.tripTimer > 0 ? state.speed * 0.65 : state.speed;
+      const movePx = currentSpeed * dt;
+      const metersMoved = movePx / 34;
+
+      state.distance = Math.min(GOAL_DISTANCE_METERS, state.distance + metersMoved);
+      state.runTimer += dt * (state.boy.tripTimer > 0 ? 6 : 14);
+
+      scrollGroundDetails(movePx);
+
+      if (state.boy.tripTimer > 0) {
+        state.boy.tripTimer = Math.max(0, state.boy.tripTimer - dt);
+      }
+      if (state.boy.invincibleTimer > 0) {
+        state.boy.invincibleTimer = Math.max(0, state.boy.invincibleTimer - dt);
+      }
+
+      state.boy.squashX += (1 - state.boy.squashX) * 12 * dt;
+      state.boy.squashY += (1 - state.boy.squashY) * 12 * dt;
+
+      if (state.boy.tripTimer > 0) {
+        state.boy.iceWobble = Math.sin(state.runTimer * 4) * 0.65;
+      } else {
+        state.boy.iceWobble = Math.sin(state.runTimer) * 0.12;
+      }
+
+      if (state.boy.isJumping) {
+        const gravity = 1950;
+        state.boy.y += state.boy.vy * dt;
+        state.boy.vy += gravity * dt;
+
+        if (state.boy.y >= state.groundY) {
+          state.boy.y = state.groundY;
+          state.boy.vy = 0;
+          state.boy.isJumping = false;
+          state.boy.squashX = 1.22;
+          state.boy.squashY = 0.80;
+          spawnDust(state.boy.x, state.groundY, 5);
+        }
+      }
+
+      if (state.distance >= state.nextRockDistance && state.distance < GOAL_DISTANCE_METERS - 22) {
+        spawnRock();
+        const minGap = state.difficulty === 'fast' ? 14 : 15;
+        const randomGap = Math.random() * 11;
+        state.nextRockDistance = state.distance + minGap + randomGap;
+      }
+
+      const s = state.scaleFactor;
+      for (let i = state.rocks.length - 1; i >= 0; i--) {
+        const rock = state.rocks[i];
+        rock.x -= movePx;
+
+        if (!rock.hit && state.boy.invincibleTimer <= 0) {
+          const boyLeft = state.boy.x - 13 * s;
+          const boyRight = state.boy.x + 13 * s;
+          const boyBottom = state.boy.y - 4 * s;
+
+          const rockLeft = rock.x - rock.radius * 0.7 * s;
+          const rockRight = rock.x + rock.radius * 0.7 * s;
+          const rockTop = state.groundY - rock.height * 0.76 * s;
+
+          if (boyRight > rockLeft && boyLeft < rockRight && boyBottom > rockTop) {
+            handleRockHit(rock);
+          }
+        }
+
+        if (rock.x < -80) {
+          state.rocks.splice(i, 1);
+        }
+      }
+
+      updateHUD();
+
+      if (state.distance >= GOAL_DISTANCE_METERS) {
+        handleGoalClear();
+      }
+    }
+
+    function scrollGroundDetails(movePx) {
+      state.hills.forEach(hill => {
+        hill.x -= movePx * 0.25;
+        if (hill.x + hill.radius < -50) {
+          hill.x = state.width + hill.radius + Math.random() * 100;
+        }
+      });
+
+      state.flowers.forEach(flower => {
+        flower.x -= movePx;
+        if (flower.x < -20) {
+          flower.x = state.width + 20 + Math.random() * 60;
+        }
+      });
+    }
+
+    function spawnRock() {
+      const isBig = Math.random() > 0.65;
+      state.rocks.push({
+        x: state.width + 45,
+        radius: isBig ? 24 : 19,
+        height: isBig ? 32 : 24,
+        hit: false,
+        faceType: Math.floor(Math.random() * 2)
+      });
+    }
+
+    function handleRockHit(rock) {
+      rock.hit = true;
+      state.lives = Math.max(0, state.lives - 1);
+      state.boy.tripTimer = 0.65;
+      state.boy.invincibleTimer = 1.25;
+      state.shakeTimer = 0.28;
+
+      if (!state.boy.isJumping) {
+        state.boy.isJumping = true;
+        state.boy.vy = -250;
+      }
+
+      updateHUD();
+
+      if (state.lives <= 0) {
+        sfx.playGameOver();
+        state.phase = 'GAMEOVER';
+
+        state.droppedIce = {
+          x: state.boy.x + 24 * state.scaleFactor,
+          y: state.boy.y - 48 * state.scaleFactor,
+          vx: 80,
+          vy: -170,
+          rot: 0,
+          vRot: 6
+        };
+
+        const remaining = Math.max(1, Math.ceil(GOAL_DISTANCE_METERS - state.distance));
+        gameoverDistanceEl.innerHTML = `あと <strong style="color: #db2777; font-size: 1.15em;">${remaining}m</strong> で ゴールだったよ！<br />つぎは ぜったい とどけられるよ！`;
+
+        setTimeout(() => {
+          gameoverScreenEl.classList.remove('hidden');
+        }, 620);
+      } else {
+        sfx.playTrip();
+        spawnDust(state.boy.x, state.groundY, 10);
+      }
+    }
+
+    function handleGoalClear() {
+      state.phase = 'GOAL_CELEBRATION';
+      state.boy.y = state.groundY;
+      state.boy.isJumping = false;
+      state.boy.tripTimer = 0;
+      state.boy.iceWobble = 0;
+
+      clearCount += 1;
+      try {
+        localStorage.setItem(STORAGE_KEY, String(clearCount));
+      } catch (e) {}
+      updateClearCountUI();
+      clearTotalBadgeEl.textContent = `🎀 とどけた かいすう：${clearCount}かいめ！`;
+
+      sfx.playGoal();
+      spawnCelebrationParticles(state.boy.x + 60, state.groundY - 40);
+
+      if (state.lives === 3) {
+        clearMessageEl.innerHTML = `1かいも こけずに パーフェクト！👑<br />「わあ、ピカピカの アイスだ！ありがとう！」<br />おんなのこが おおよろこび しているよ！`;
+      } else {
+        clearMessageEl.innerHTML = `こけても あきらめずに がんばったね！✨<br />「わあ、おいしそう！ありがとう！」<br />おんなのこが とっても よろこんでいるよ！`;
+      }
+
+      setTimeout(() => {
+        clearScreenEl.classList.remove('hidden');
+      }, 900);
+    }
+
+    // ==========================================
+    // 6. 描画処理 (Render)
+    // ==========================================
+    function draw() {
+      ctx.save();
+
+      if (state.shakeTimer > 0) {
+        const mag = state.shakeTimer * 16;
+        ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+      }
+
+      // 空の背景
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, state.groundY);
+      skyGrad.addColorStop(0, '#7dd3fc');
+      skyGrad.addColorStop(0.65, '#bae6fd');
+      skyGrad.addColorStop(1, '#fef9c3');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      // おひさま
+      drawSun(state.width - 55, 52, state.scaleFactor);
+
+      // 雲
+      state.clouds.forEach(cloud => drawCloud(cloud.x, cloud.y, cloud.scale * state.scaleFactor));
+
+      // 丘
+      state.hills.forEach(hill => {
+        ctx.fillStyle = hill.color;
+        ctx.beginPath();
+        ctx.arc(hill.x, state.groundY + 20, hill.radius * state.scaleFactor, Math.PI, 0);
+        ctx.fill();
+      });
+
+      // 地面
+      drawGround();
+
+      // ゴールの女の子
+      const metersToGoal = GOAL_DISTANCE_METERS - state.distance;
+      if (metersToGoal <= 32) {
+        const girlX = state.boy.x + 82 * state.scaleFactor + metersToGoal * 34;
+        drawGoalArchAndGirl(girlX, state.groundY);
+      }
+
+      // 石
+      state.rocks.forEach(rock => drawRock(rock));
+
+      // 男の子とアイス
+      drawBoyWithIceCream();
+
+      // 落ちたアイス
+      if (state.droppedIce) {
+        drawDroppedIce(state.droppedIce);
+      }
+
+      // パーティクル
+      drawParticles();
+
+      ctx.restore();
+    }
+
+    function drawSun(x, y, s) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 36, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(0, 0, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(-7, -3, 2.5, 0, Math.PI * 2);
+      ctx.arc(7, -3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 2, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCloud(x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.arc(22, -7, 28, 0, Math.PI * 2);
+      ctx.arc(48, 0, 22, 0, Math.PI * 2);
+      ctx.arc(23, 9, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGround() {
+      const groundH = state.height - state.groundY;
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(0, state.groundY, state.width, groundH);
+
+      ctx.fillStyle = '#86efac';
+      ctx.fillRect(0, state.groundY, state.width, Math.min(8, groundH * 0.16));
+
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(0, state.groundY + Math.min(8, groundH * 0.16), state.width, Math.min(16, groundH * 0.32));
+
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, state.groundY);
+      ctx.lineTo(state.width, state.groundY);
+      ctx.stroke();
+
+      state.flowers.forEach(f => {
+        const fy = state.groundY + groundH * f.offsetRatio;
+        ctx.save();
+        ctx.translate(f.x, fy);
+        ctx.fillStyle = f.color;
+        for (let a = 0; a < 5; a++) {
+          const rad = (a * Math.PI * 2) / 5;
+          ctx.beginPath();
+          ctx.arc(Math.cos(rad) * f.size * 0.65, Math.sin(rad) * f.size * 0.65, f.size * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(0, 0, f.size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawRock(rock) {
+      const s = state.scaleFactor;
+      ctx.save();
+      ctx.translate(rock.x, state.groundY);
+      ctx.scale(s, s);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(0, 2, rock.radius * 1.05, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-rock.radius, 0);
+      ctx.quadraticCurveTo(-rock.radius * 0.9, -rock.height, 0, -rock.height);
+      ctx.quadraticCurveTo(rock.radius * 0.95, -rock.height * 0.95, rock.radius, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.ellipse(-rock.radius * 0.25, -rock.height * 0.62, rock.radius * 0.35, rock.height * 0.16, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.arc(-5, -rock.height * 0.36, 2.2, 0, Math.PI * 2);
+      ctx.arc(5, -rock.height * 0.36, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (rock.faceType === 0) {
+        ctx.moveTo(-4, -rock.height * 0.22);
+        ctx.lineTo(4, -rock.height * 0.22);
+      } else {
+        ctx.arc(0, -rock.height * 0.22, 3, 0, Math.PI);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawBoyWithIceCream() {
+      const b = state.boy;
+      if (b.invincibleTimer > 0 && Math.floor(b.invincibleTimer * 16) % 2 === 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        renderBoyBody(b);
+        ctx.restore();
+      } else {
+        renderBoyBody(b);
+      }
+    }
+
+    function renderBoyBody(b) {
+      const s = state.scaleFactor;
+      const heightFromGround = Math.max(0, state.groundY - b.y);
+      const shadowScale = Math.max(0.35, 1 - heightFromGround / 200);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+      ctx.beginPath();
+      ctx.ellipse(b.x, state.groundY + 2, 22 * s * shadowScale, 5 * s * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.scale(s, s);
+
+      if (b.tripTimer > 0) {
+        ctx.rotate(0.42);
+      } else if (state.phase === 'GOAL_CELEBRATION') {
+        ctx.translate(0, -Math.abs(Math.sin(state.runTimer)) * 10);
+      }
+
+      ctx.scale(b.squashX, b.squashY);
+
+      const legSwing = state.boy.isJumping ? 0.55 : Math.sin(state.runTimer) * 0.75;
+
+      // 後ろの足
+      ctx.save();
+      ctx.translate(-3, -22);
+      ctx.rotate(-legSwing);
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(-5, 0, 10, 14);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.roundRect(-5, 12, 15, 9, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // 胴体
+      ctx.fillStyle = '#38bdf8';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(-14, -48, 28, 28, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(-12, -39, 24, 6);
+
+      // 前の足
+      ctx.save();
+      ctx.translate(3, -22);
+      ctx.rotate(legSwing);
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(-5, 0, 10, 14);
+      ctx.fillStyle = '#f87171';
+      ctx.beginPath();
+      ctx.roundRect(-5, 12, 16, 9, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // 頭
+      ctx.save();
+      ctx.translate(0, -64);
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 19, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#78350f';
+      ctx.beginPath();
+      ctx.arc(0, -4, 19.5, Math.PI * 0.92, Math.PI * 2.08);
+      ctx.lineTo(14, -8);
+      ctx.lineTo(6, -13);
+      ctx.lineTo(0, -7);
+      ctx.lineTo(-8, -13);
+      ctx.closePath();
+      ctx.fill();
+
+      // 赤いキャップ
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(0, -8, 18, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(4, -10, 20, 4);
+
+      // ほっぺ
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+      ctx.beginPath();
+      ctx.arc(10, 4, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 表情
+      ctx.strokeStyle = '#451a03';
+      ctx.fillStyle = '#451a03';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      if (b.tripTimer > 0 || state.phase === 'GAMEOVER') {
+        ctx.beginPath();
+        ctx.moveTo(4, -4);
+        ctx.lineTo(10, -1);
+        ctx.lineTo(4, 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(8, 9, 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.arc(8, -2, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(7, 5, 5, 0.1 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 腕とアイスクリーム
+      ctx.save();
+      ctx.translate(10, -40);
+      const armAngle = state.phase === 'GOAL_CELEBRATION' ? -0.45 : -0.15 + Math.sin(state.runTimer) * 0.12;
+      ctx.rotate(armAngle);
+
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(18, -6);
+      ctx.stroke();
+
+      if (state.phase !== 'GAMEOVER') {
+        ctx.save();
+        ctx.translate(20, -8);
+        ctx.rotate(b.iceWobble);
+        drawIceCreamCone(0, 0, 1.0);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    function drawIceCreamCone(x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-9, -4);
+      ctx.lineTo(9, -4);
+      ctx.lineTo(0, 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-5, 2);
+      ctx.lineTo(4, 9);
+      ctx.moveTo(5, 2);
+      ctx.lineTo(-4, 9);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.strokeStyle = '#eab308';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, -10, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ff758f';
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, -22, 9.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(0, -32, 3.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawDroppedIce(ice) {
+      ctx.save();
+      ctx.translate(ice.x, ice.y);
+      ctx.scale(state.scaleFactor, state.scaleFactor);
+      ctx.rotate(ice.rot);
+      drawIceCreamCone(0, 0, 1.0);
+      ctx.restore();
+    }
+
+    function drawGoalArchAndGirl(x, y) {
+      const s = state.scaleFactor;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 3;
+      ctx.fillRect(32, -130, 8, 130);
+      ctx.strokeRect(32, -130, 8, 130);
+
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.roundRect(40, -130, 74, 34, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ゴール！', 77, -108);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 22, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const bounce = state.phase === 'GOAL_CELEBRATION'
+        ? Math.abs(Math.sin(state.runTimer * 1.2)) * 12
+        : Math.abs(Math.sin(state.runTimer * 0.6)) * 5;
+
+      ctx.translate(0, -bounce);
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(-8, -20, 6, 14);
+      ctx.fillRect(2, -20, 6, 14);
+
+      ctx.fillStyle = '#ec4899';
+      ctx.beginPath();
+      ctx.roundRect(-11, -8, 11, 8, 4);
+      ctx.roundRect(0, -8, 11, 8, 4);
+      ctx.fill();
+
+      ctx.fillStyle = '#f472b6';
+      ctx.strokeStyle = '#db2777';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-10, -48);
+      ctx.lineTo(10, -48);
+      ctx.lineTo(18, -18);
+      ctx.lineTo(-18, -18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const wave = Math.sin(state.runTimer * 1.4) * 0.35;
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-10, -42);
+      ctx.lineTo(-22, -52 + wave * 12);
+      ctx.moveTo(10, -42);
+      ctx.lineTo(22, -52 - wave * 12);
+      ctx.stroke();
+
+      ctx.translate(0, -64);
+
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.arc(-19, -4, 9, 0, Math.PI * 2);
+      ctx.arc(19, -4, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.arc(-15, -12, 5, 0, Math.PI * 2);
+      ctx.arc(15, -12, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.arc(0, -3, 18.5, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.4)';
+      ctx.beginPath();
+      ctx.arc(-9, 4, 4, 0, Math.PI * 2);
+      ctx.arc(9, 4, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#451a03';
+      ctx.beginPath();
+      ctx.arc(-7, -2, 2.5, 0, Math.PI * 2);
+      ctx.arc(5, -2, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#be123c';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(-1, 4, 5, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.stroke();
+
+      if (state.phase === 'GOAL_CELEBRATION') {
+        ctx.save();
+        ctx.translate(-26, 20);
+        ctx.rotate(-0.15);
+        drawIceCreamCone(0, 0, 1.05);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      state.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, p.life * 2);
+        ctx.translate(p.x, p.y);
+
+        if (p.type === 'dust') {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === 'heart') {
+          ctx.rotate(p.rotation * 0.2);
+          ctx.fillStyle = '#ff4d6d';
+          const s = p.size * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(0, s);
+          ctx.bezierCurveTo(-s * 2, -s * 0.5, -s, -s * 2, 0, -s * 0.6);
+          ctx.bezierCurveTo(s, -s * 2, s * 2, -s * 0.5, 0, s);
+          ctx.fill();
+        } else {
+          ctx.rotate(p.rotation);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    // ==========================================
+    // 7. アニメーションループとイベントリスナー
+    // ==========================================
+    function gameLoop(timestamp) {
+      if (!state.lastTime) state.lastTime = timestamp;
+      const dt = Math.min(0.05, (timestamp - state.lastTime) / 1000);
+      state.lastTime = timestamp;
+
+      update(dt);
+      draw();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function selectDifficulty(level) {
+      state.difficulty = level;
+      if (level === 'normal') {
+        speedNormalBtn.className = 'speed-btn active-normal';
+        speedFastBtn.className = 'speed-btn';
+      } else {
+        speedFastBtn.className = 'speed-btn active-fast';
+        speedNormalBtn.className = 'speed-btn';
+      }
+    }
+
+    speedNormalBtn.addEventListener('click', () => selectDifficulty('normal'));
+    speedFastBtn.addEventListener('click', () => selectDifficulty('fast'));
+
+    startBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', startGame);
+    playAgainClearBtn.addEventListener('click', startGame);
+
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isMuted = sfx.toggleMute();
+      muteBtn.textContent = isMuted ? '🔇' : '🔊';
+    });
+
+    // ジャンプボタン操作（pointerdown でタブレットのタッチ遅延をゼロに）
+    jumpBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      jumpBtn.classList.add('pressed');
+      triggerJump();
+    });
+    jumpBtn.addEventListener('pointerup', () => jumpBtn.classList.remove('pressed'));
+    jumpBtn.addEventListener('pointerleave', () => jumpBtn.classList.remove('pressed'));
+    jumpBtn.addEventListener('pointercancel', () => jumpBtn.classList.remove('pressed'));
+
+    // ゲーム画面（キャンバス）のどこをタップしても即ジャンプ
+    canvas.addEventListener('pointerdown', (e) => {
+      if (state.phase === 'PLAYING') {
+        e.preventDefault();
+        jumpBtn.classList.add('pressed');
+        triggerJump();
+        setTimeout(() => jumpBtn.classList.remove('pressed'), 120);
+      }
+    });
+
+    // キーボード操作（Space / 上矢印 / W）
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (state.phase === 'PLAYING') {
+          e.preventDefault();
+          jumpBtn.classList.add('pressed');
+          triggerJump();
+        } else if (state.phase === 'START' && e.code === 'Space') {
+          e.preventDefault();
+          startGame();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        jumpBtn.classList.remove('pressed');
+      }
+    });
+
+    // タブレットの回転やアドレスバー開閉に即座に追従する ResizeObserver
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => resizeCanvas());
+      ro.observe(canvasWrapper);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(resizeCanvas, 120);
+    });
+
+    window.onload = function () {
+      resizeCanvas();
+      initScenery();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
